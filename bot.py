@@ -1,4 +1,4 @@
-import os, threading, asyncio, requests, random, re, urllib.parse
+import os, threading, asyncio, requests, random, re, urllib.parse, subprocess
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
@@ -85,9 +85,16 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         r = requests.get(url_voz, timeout=20)
         with open("/tmp/anubis.mp3", "wb") as f:
             f.write(r.content)
-        # CORREGIDO: como AUDIO, no como VOICE, para que muestre duración
-        with open("/tmp/anubis.mp3", "rb") as f:
-            await update.message.reply_audio(audio=f, filename="anubis.mp3", title="ANUBIS HABLA")
+
+        # Convertir a OGG para que Telegram muestre duración y se vea como nota de voz
+        try:
+            subprocess.run(["ffmpeg", "-y", "-i", "/tmp/anubis.mp3", "-c:a", "libopus", "/tmp/anubis.ogg"], capture_output=True, timeout=20)
+            with open("/tmp/anubis.ogg", "rb") as f:
+                await update.message.reply_voice(voice=f)
+        except:
+            # Si falla ffmpeg, mandar como audio normal
+            with open("/tmp/anubis.mp3", "rb") as f:
+                await update.message.reply_audio(audio=f, filename="anubis.mp3", title="ANUBIS HABLA")
     except Exception as e:
         await update.message.reply_text(f"💀 No pude hablar: {e}")
 
