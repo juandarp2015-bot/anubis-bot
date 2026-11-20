@@ -1,8 +1,7 @@
-import os, threading, asyncio, requests, random, re
+import os, threading, asyncio, requests, random, re, urllib.parse
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-import edge_tts
 
 app_flask = Flask(__name__)
 @app_flask.route('/')
@@ -25,11 +24,11 @@ def preguntar_a_anubis(pregunta, nombre="mortal"):
         data = {
             "model": "openai/gpt-oss-20b",
             "messages": [
-                {"role": "system", "content": f"Eres ANUBIS, dios egipcio. Hablas con majestad, humor oscuro, sarcástico, sabio. Usas emojis 👑 ⚖️ 💀 🔮. El usuario se llama {nombre}, llámalo por su nombre a veces. Respuestas cortas, máximo 4-5 líneas, español colombiano, tuteas. Nunca dices que eres IA, eres ANUBIS."},
+                {"role": "system", "content": f"Eres ANUBIS, dios egipcio. Hablas con majestad, humor oscuro, sarcástico, sabio. Usas emojis 👑 ⚖️ 💀 🔮. El usuario se llama {nombre}, llámalo por su nombre a veces. Respuestas cortas, máximo 3-4 líneas, español colombiano, tuteas. Nunca dices que eres IA, eres ANUBIS."},
                 {"role": "user", "content": pregunta}
             ],
             "temperature": 0.8,
-            "max_tokens": 400
+            "max_tokens": 300
         }
         r = requests.post(url, headers=headers, json=data, timeout=30)
         return r.json()["choices"][0]["message"]["content"]
@@ -76,19 +75,17 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     respuesta = preguntar_a_anubis(texto, nombres.get(update.effective_user.id, "mortal"))
     await update.message.reply_text(respuesta)
     try:
-        # Limpiar emojis y símbolos para la voz
         limpio = re.sub(r'[^\w\s.,!?¿¡áéíóúÁÉÍÓÚñÑ-]', '', respuesta)
-        limpio = limpio.replace('\n', ' ')[:500]
+        limpio = limpio.replace('\n', ' ')[:400]
         if not limpio.strip():
             limpio = "Hola mortal, soy Anubis"
         
-        try:
-            communicate = edge_tts.Communicate(limpio, voice="es-CO-GonzaloNeural")
-            await communicate.save("/tmp/anubis.mp3")
-        except:
-            communicate = edge_tts.Communicate(limpio, voice="es-MX-JorgeNeural")
-            await communicate.save("/tmp/anubis.mp3")
-
+        # VOZ DE HOMBRE - ENRIQUE - Sin 【entity-Microsoft¦canonical_name=Microsoft】, funciona en Render
+        texto_url = urllib.parse.quote(limpio)
+        url_voz = f"https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text={texto_url}"
+        r = requests.get(url_voz, timeout=20)
+        with open("/tmp/anubis.mp3", "wb") as f:
+            f.write(r.content)
         with open("/tmp/anubis.mp3", "rb") as f:
             await update.message.reply_voice(voice=f)
     except Exception as e:
