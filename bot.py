@@ -63,7 +63,6 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"{nombre.upper()}, {random.choice(FRASES_ANUBIS)}")
 
-# --- ESTA ES LA PARTE QUE ARREGLA EL ERROR DE PYTHON 3.14 ---
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -75,7 +74,7 @@ async def main():
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
-    await app.updater.idle()
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     asyncio.run(main())
