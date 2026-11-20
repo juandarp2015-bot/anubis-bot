@@ -4,12 +4,17 @@ import random
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from gtts import gTTS
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+# Busca el token con cualquier nombre que le hayas puesto en Render
+TOKEN = os.getenv("TELEGRAM_TOKEN") or os.getenv("BOT_TOKEN") or os.getenv("TOKEN")
+
+if not TOKEN:
+    print("❌ ERROR: No encontré el TOKEN en Render. Revisa Environment.")
+else:
+    print("✅ TOKEN encontrado, arrancando ANUBIS...")
+
 logging.basicConfig(level=logging.INFO)
 
-# --- /start - SOLO PAPEL DE ANUBIS, sin comandos, sin creador ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = update.effective_user.first_name or "JUANDA"
     await update.message.reply_text(
@@ -17,7 +22,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Pregúntame LO QUE SEA."
     )
 
-# --- /meme ---
 async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         r = requests.get("https://meme-api.com/gimme", timeout=10).json()
@@ -25,7 +29,6 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("😈 Hoy no hay memes en el más allá.")
 
-# --- /imagen - ARREGLADO, ya no se queda pegado ---
 async def imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = " ".join(context.args)
     if not prompt:
@@ -38,20 +41,20 @@ async def imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("😈 No pude pintar eso. Intenta con otra cosa.")
 
-# --- /voz ---
 async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = " ".join(context.args)
     if not texto:
         await update.message.reply_text("🔊 Escribe: /voz hola como estas")
         return
     try:
+        from gtts import gTTS
         tts = gTTS(text=texto, lang='es', slow=False)
         tts.save("voz.mp3")
         await update.message.reply_voice(voice=open("voz.mp3", "rb"))
-    except:
+    except Exception as e:
+        print(f"Error voz: {e}")
         await update.message.reply_text("😈 No pude hablar ahora.")
 
-# --- CHAT NORMAL - PURO ANUBIS ---
 FRASES_ANUBIS = [
     "La muerte no es un final, es la entrada al juicio de la vida. 👑💀",
     "En la oscuridad la verdad se revela y tú ya conoces el precio. ⚖️",
@@ -63,14 +66,13 @@ FRASES_ANUBIS = [
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = update.effective_user.first_name or "JUANDA"
     texto = update.message.text or ""
-    # Si es un comando que no existe, no hacer nada raro
     if texto.startswith("/"):
         return
-    respuesta = random.choice(FRASES_ANUBIS)
-    await update.message.reply_text(f"{nombre.upper()}, {respuesta}")
+    await update.message.reply_text(f"{nombre.upper()}, {random.choice(FRASES_ANUBIS)}")
 
-# --- MAIN ---
 def main():
+    if not TOKEN:
+        return
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("meme", meme))
@@ -81,4 +83,4 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    main() 
