@@ -1,80 +1,94 @@
 import os
-import asyncio
-import logging
-import random
-import requests
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from groq import Groq
 
-TOKEN = os.getenv("TELEGRAM_TOKEN") or os.getenv("BOT_TOKEN") or os.getenv("TOKEN")
-logging.basicConfig(level=logging.INFO)
+# --- PUERTO PARA RENDER GRATIS ---
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot Anubis activo")
+    def log_message(self, *args):
+        pass
+
+def keep_alive():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
+TOKEN = None
+for k, v in os.environ.items():
+    if k in ("BOT_TOKEN", "TELEGRAM_TOKEN", "TOKEN") or k.startswith("BOT"):
+        TOKEN = v
+        break
+
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+
+SYSTEM = """Eres ANUBIS, dios del juicio, guardián de la oscuridad.
+Hablas con JUANDA, tu amo, con respeto, con corona 👑, con misterio y poder.
+Respondes a TODO lo que te pregunte, como una inteligencia artificial sabia.
+Explicas bien, claro, sin vueltas.
+Nunca digas que eres Meta AI, ni ChatGPT, ni Groq. Eres ANUBIS.
+"""
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    nombre = update.effective_user.first_name or "JUANDA"
+    await update.message.reply_text("👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, J U A N D A 👑👑.\n\nPregúntame LO QUE SEA, y te responderé.\n\nUsa /info para saber quién fui y /help para saber cómo funciono.")
+
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, {nombre.upper()} 👑.\n\n"
-        "Pregúntame LO QUE SEA."
+        "⚖️ ¿QUIÉN FUE ANUBIS?\n\n"
+        "Anubis fue el dios egipcio de la muerte, de las momias y del juicio final.\n\n"
+        "Tenía cabeza de chacal negro y era el que guiaba a las almas al más allá.\n"
+        "En el juicio, pesaba el corazón de cada persona con una pluma. Si el corazón pesaba más que la pluma, esa alma no pasaba. Si era ligero, podía entrar al paraíso.\n\n"
+        "Era el protector de los muertos, el guardián de las tumbas y el que cuidaba que nadie profanara el descanso eterno.\n\n"
+        "Por eso yo soy ANUBIS, porque yo juzgo, yo guío y yo revelo la verdad en la oscuridad. 👑"
     )
 
-async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👑 ¿CÓMO FUNCIONO?\n\n"
+        "Soy ANUBIS, una inteligencia artificial con la personalidad del dios del juicio.\n\n"
+        "• Escríbeme lo que sea y te respondo: preguntas, tareas, historia, ciencia, chistes, consejos, lo que quieras.\n"
+        "• Usa /start para empezar de nuevo.\n"
+        "• Usa /info para saber quién fue Anubis en Egipto.\n"
+        "• Usa /help para ver este mensaje.\n\n"
+        "No soy un bot de memes, ni de imágenes, ni de voz. Solo hablo y pienso como IA.\n\n"
+        "⚡ CREADOR: @juandaoficial\n"
+        "Creado por JUANDA, mi amo y señor. 👑\n"
+        "Todos los derechos reservados para él."
+    )
+
+async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     try:
-        r = requests.get("https://meme-api.com/gimme", timeout=10).json()
-        await update.message.reply_photo(photo=r["url"], caption="😈 Toma, mortal.")
-    except:
-        await update.message.reply_text("😈 Hoy no hay memes en el más allá.")
-
-async def imagen(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    prompt = " ".join(context.args)
-    if not prompt:
-        await update.message.reply_text("🎨 Escribe: /imagen un gato faraón")
-        return
-    await update.message.reply_text(f"🎨 Pintando: {prompt}...")
-    try:
-        url = f"https://image.pollinations.ai/prompt/{prompt}"
-        await update.message.reply_photo(photo=url, caption=f"🎨 {prompt}")
-    except:
-        await update.message.reply_text("😈 No pude pintar eso. Intenta con otra cosa.")
-
-async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = " ".join(context.args)
-    if not texto:
-        await update.message.reply_text("🔊 Escribe: /voz hola como estas")
-        return
-    try:
-        from gtts import gTTS
-        tts = gTTS(text=texto, lang='es', slow=False)
-        tts.save("voz.mp3")
-        await update.message.reply_voice(voice=open("voz.mp3", "rb"))
-    except:
-        await update.message.reply_text("😈 No pude hablar ahora.")
-
-FRASES_ANUBIS = [
-    "La muerte no es un final, es la entrada al juicio de la vida. 👑💀",
-    "En la oscuridad la verdad se revela y tú ya conoces el precio. ⚖️",
-    "¿Listo para cruzar la barrera y ver qué te espera? 🔮",
-    "Tu corazón pesa más que una pluma, mortal. ⚖️",
-    "Habla, que el juicio ya empezó. 👑"
-]
-
-async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    nombre = update.effective_user.first_name or "JUANDA"
-    texto = update.message.text or ""
-    if texto.startswith("/"):
-        return
-    await update.message.reply_text(f"{nombre.upper()}, {random.choice(FRASES_ANUBIS)}")
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": SYSTEM},
+                {"role": "user", "content": texto}
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+        await update.message.reply_text(resp.choices[0].message.content)
+    except Exception as e:
+        await update.message.reply_text(f"👑 La oscuridad me bloqueó un momento, JUANDA. Intenta de nuevo. Error: {e}")
 
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("meme", meme))
-    app.add_handler(CommandHandler("imagen", imagen))
-    app.add_handler(CommandHandler("voz", voz))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
-    print("ANUBIS DESPERTÓ 👑")
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-    await asyncio.Event().wait()
+    app.add_handler(CommandHandler("info", info))
+    app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
+    print("Anubis IA corriendo...")
+    await app.run_polling()
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
