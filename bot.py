@@ -1,4 +1,4 @@
-import os, threading, asyncio, requests, random
+import os, threading, asyncio, requests, random, re
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
@@ -34,7 +34,7 @@ def preguntar_a_anubis(pregunta, nombre="mortal"):
         r = requests.post(url, headers=headers, json=data, timeout=30)
         return r.json()["choices"][0]["message"]["content"]
     except:
-        return "💀 Mi balanza se rompió un momento, mortal. Pregúntame de nuevo."
+        return "Mi balanza se rompió un momento, mortal. Pregúntame de nuevo."
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = update.effective_user.first_name
@@ -76,13 +76,23 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     respuesta = preguntar_a_anubis(texto, nombres.get(update.effective_user.id, "mortal"))
     await update.message.reply_text(respuesta)
     try:
-        # VOZ DE HOMBRE COLOMBIANO - GONZALO
-        communicate = edge_tts.Communicate(respuesta, voice="es-CO-GonzaloNeural")
-        await communicate.save("/tmp/anubis.mp3")
+        # Limpiar emojis y símbolos para la voz
+        limpio = re.sub(r'[^\w\s.,!?¿¡áéíóúÁÉÍÓÚñÑ-]', '', respuesta)
+        limpio = limpio.replace('\n', ' ')[:500]
+        if not limpio.strip():
+            limpio = "Hola mortal, soy Anubis"
+        
+        try:
+            communicate = edge_tts.Communicate(limpio, voice="es-CO-GonzaloNeural")
+            await communicate.save("/tmp/anubis.mp3")
+        except:
+            communicate = edge_tts.Communicate(limpio, voice="es-MX-JorgeNeural")
+            await communicate.save("/tmp/anubis.mp3")
+
         with open("/tmp/anubis.mp3", "rb") as f:
             await update.message.reply_voice(voice=f)
     except Exception as e:
-        await update.message.reply_text("💀 No pude hablar, pero ya te escribí arriba.")
+        await update.message.reply_text(f"💀 No pude hablar: {e}")
 
 if __name__ == "__main__":
     threading.Thread(target=run_web, daemon=True).start()
