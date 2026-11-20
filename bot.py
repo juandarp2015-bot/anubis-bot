@@ -85,14 +85,18 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         r = requests.get(url_voz, timeout=20)
         with open("/tmp/anubis.mp3", "wb") as f:
             f.write(r.content)
+        print(f"Tamaño mp3: {len(r.content)}")
 
-        # Convertir a OGG para que Telegram muestre duración y se vea como nota de voz
+        # Usar ffmpeg que viene dentro de Python, no el de Render
         try:
-            subprocess.run(["ffmpeg", "-y", "-i", "/tmp/anubis.mp3", "-c:a", "libopus", "/tmp/anubis.ogg"], capture_output=True, timeout=20)
+            import imageio_ffmpeg
+            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+            subprocess.run([ffmpeg, "-y", "-i", "/tmp/anubis.mp3", "-c:a", "libopus", "-b:a", "64k", "/tmp/anubis.ogg"], capture_output=True, timeout=30)
+            print("OGG creado:", os.path.exists("/tmp/anubis.ogg"))
             with open("/tmp/anubis.ogg", "rb") as f:
                 await update.message.reply_voice(voice=f)
-        except:
-            # Si falla ffmpeg, mandar como audio normal
+        except Exception as e2:
+            print(f"Fallo ogg: {e2}")
             with open("/tmp/anubis.mp3", "rb") as f:
                 await update.message.reply_audio(audio=f, filename="anubis.mp3", title="ANUBIS HABLA")
     except Exception as e:
