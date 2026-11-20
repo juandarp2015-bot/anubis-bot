@@ -80,14 +80,14 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not limpio.strip():
             limpio = "Hola mortal, soy Anubis"
         
-        # VOZ DE HOMBRE - ENRIQUE - Sin 【entity-Microsoft¦canonical_name=Microsoft】, funciona en Render
         texto_url = urllib.parse.quote(limpio)
         url_voz = f"https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text={texto_url}"
         r = requests.get(url_voz, timeout=20)
         with open("/tmp/anubis.mp3", "wb") as f:
             f.write(r.content)
+        # CORREGIDO: como AUDIO, no como VOICE, para que muestre duración
         with open("/tmp/anubis.mp3", "rb") as f:
-            await update.message.reply_voice(voice=f)
+            await update.message.reply_audio(audio=f, filename="anubis.mp3", title="ANUBIS HABLA")
     except Exception as e:
         await update.message.reply_text(f"💀 No pude hablar: {e}")
 
