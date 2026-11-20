@@ -1,18 +1,12 @@
 import os
+import asyncio
 import logging
 import random
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Busca el token con cualquier nombre que le hayas puesto en Render
 TOKEN = os.getenv("TELEGRAM_TOKEN") or os.getenv("BOT_TOKEN") or os.getenv("TOKEN")
-
-if not TOKEN:
-    print("❌ ERROR: No encontré el TOKEN en Render. Revisa Environment.")
-else:
-    print("✅ TOKEN encontrado, arrancando ANUBIS...")
-
 logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,8 +45,7 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tts = gTTS(text=texto, lang='es', slow=False)
         tts.save("voz.mp3")
         await update.message.reply_voice(voice=open("voz.mp3", "rb"))
-    except Exception as e:
-        print(f"Error voz: {e}")
+    except:
         await update.message.reply_text("😈 No pude hablar ahora.")
 
 FRASES_ANUBIS = [
@@ -70,9 +63,8 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"{nombre.upper()}, {random.choice(FRASES_ANUBIS)}")
 
-def main():
-    if not TOKEN:
-        return
+# --- ESTA ES LA PARTE QUE ARREGLA EL ERROR DE PYTHON 3.14 ---
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("meme", meme))
@@ -80,7 +72,10 @@ def main():
     app.add_handler(CommandHandler("voz", voz))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
     print("ANUBIS DESPERTÓ 👑")
-    app.run_polling()
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.idle()
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main())
