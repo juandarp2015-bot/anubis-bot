@@ -1,7 +1,8 @@
-import os, threading, asyncio, requests, random, re, urllib.parse, subprocess
+import os, threading, asyncio, requests, random, re, subprocess
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from gtts import gTTS
 
 app_flask = Flask(__name__)
 @app_flask.route('/')
@@ -14,7 +15,6 @@ def run_web():
 
 TOKEN = os.environ.get("BOT_TOKEN")
 GROQ_KEY = os.environ.get("GROQ_API_KEY")
-
 nombres = {}
 
 def preguntar_a_anubis(pregunta, nombre="mortal"):
@@ -80,25 +80,19 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not limpio.strip():
             limpio = "Hola mortal, soy Anubis"
         
-        texto_url = urllib.parse.quote(limpio)
-        url_voz = f"https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text={texto_url}"
-        r = requests.get(url_voz, timeout=20)
-        with open("/tmp/anubis.mp3", "wb") as f:
-            f.write(r.content)
-        print(f"Tamaño mp3: {len(r.content)}")
+        # 1. Voz base con gTTS (esta SÍ trae duración correcta)
+        tts = gTTS(text=limpio, lang='es', slow=False)
+        tts.save("/tmp/anubis_orig.mp3")
 
-        # Usar ffmpeg que viene dentro de Python, no el de Render
-        try:
-            import imageio_ffmpeg
-            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-            subprocess.run([ffmpeg, "-y", "-i", "/tmp/anubis.mp3", "-c:a", "libopus", "-b:a", "64k", "/tmp/anubis.ogg"], capture_output=True, timeout=30)
-            print("OGG creado:", os.path.exists("/tmp/anubis.ogg"))
-            with open("/tmp/anubis.ogg", "rb") as f:
-                await update.message.reply_voice(voice=f)
-        except Exception as e2:
-            print(f"Fallo ogg: {e2}")
-            with open("/tmp/anubis.mp3", "rb") as f:
-                await update.message.reply_audio(audio=f, filename="anubis.mp3", title="ANUBIS HABLA")
+        # 2. Bajarle el tono para que suene a HOMBRE grave
+        import imageio_ffmpeg
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        # asetrate baja el pitch, atempo lo deja en velocidad normal
+        subprocess.run([ffmpeg, "-y", "-i", "/tmp/anubis_orig.mp3", "-filter:a", "asetrate=44100*0.78,aresample=44100,atempo=1.0", "-c:a", "libmp3lame", "-q:a", "3", "/tmp/anubis.mp3"], capture_output=True, timeout=30)
+        
+        # 3. Mandar como AUDIO - este sí muestra duración porque es mp3 de Google
+        with open("/tmp/anubis.mp3", "rb") as f:
+            await update.message.reply_audio(audio=f, filename="anubis.mp3", title="ANUBIS HABLA")
     except Exception as e:
         await update.message.reply_text(f"💀 No pude hablar: {e}")
 
