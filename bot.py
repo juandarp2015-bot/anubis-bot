@@ -40,10 +40,7 @@ Nunca digas que eres Meta AI, ni ChatGPT, ni Groq. Eres ANUBIS.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, J U A N D A 👑👑.\n\n"
-        "Pregúntame LO QUE SEA, y te responderé como IA.\n\n"
-        "Usa el Menú de abajo 👇\n"
-        "• /info - Quien soy\n"
-        "• /help - Mi creador"
+        "Pregúntame LO QUE SEA, y te responderé como IA."
     )
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -75,7 +72,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     try:
         resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": texto}
@@ -95,7 +92,6 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
     print("Anubis IA corriendo...")
     await app.initialize()
-    # ESTO PONE EL MENÚ SOLO, SIN BOTFATHER
     await app.bot.set_my_commands([
         BotCommand("start", "Despertar"),
         BotCommand("info", "Quien soy"),
