@@ -2,7 +2,7 @@ import os, threading, asyncio, requests, random
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from gtts import gTTS
+import edge_tts
 
 app_flask = Flask(__name__)
 @app_flask.route('/')
@@ -39,7 +39,7 @@ def preguntar_a_anubis(pregunta, nombre="mortal"):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = update.effective_user.first_name
     nombres[update.effective_user.id] = nombre
-    await update.message.reply_text(f"👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, {nombre}.\n\nPregúntame LO QUE SEA.\n\nComandos nuevos:\n🎭 /meme - te mando un meme\n🎨 /imagen un gato egipcio - te creo una imagen\n🔊 /voz hola como estas - te hablo con voz")
+    await update.message.reply_text(f"👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, {nombre}.\n\nPregúntame LO QUE SEA.\n\nComandos:\n🎭 /meme\n🎨 /imagen un gato egipcio\n🔊 /voz hola como estas")
 
 async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -76,8 +76,9 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     respuesta = preguntar_a_anubis(texto, nombres.get(update.effective_user.id, "mortal"))
     await update.message.reply_text(respuesta)
     try:
-        tts = gTTS(text=respuesta, lang='es')
-        tts.save("/tmp/anubis.mp3")
+        # VOZ DE HOMBRE COLOMBIANO - GONZALO
+        communicate = edge_tts.Communicate(respuesta, voice="es-CO-GonzaloNeural")
+        await communicate.save("/tmp/anubis.mp3")
         with open("/tmp/anubis.mp3", "rb") as f:
             await update.message.reply_voice(voice=f)
     except Exception as e:
