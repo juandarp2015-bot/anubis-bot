@@ -1,93 +1,58 @@
 import os
-import random
 import threading
 import asyncio
+import requests
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# --- MINI SERVIDOR PARA RENDER ---
 app_flask = Flask(__name__)
-
 @app_flask.route('/')
 def home():
-    return "ANUBIS ESTA VIVO"
+    return "ANUBIS IA ESTA VIVO"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
     app_flask.run(host="0.0.0.0", port=port)
 
-# --- BOT ---
 TOKEN = os.environ.get("BOT_TOKEN")
+GROQ_KEY = os.environ.get("GROQ_API_KEY")
 
-JUICIOS = [
-    "⚖️ ANUBIS te ha pesado... Tu corazón pesa más que una pluma. Tienes que cambiar.",
-    "⚖️ ANUBIS dice: Eres culpable de no creer en ti. Condenado a intentarlo de nuevo.",
-    "⚖️ ANUBIS te absuelve. Hoy el destino está de tu lado.",
-    "⚖️ ANUBIS te ha juzgado: Eres más fuerte de lo que crees. No te rindas.",
-]
-
-ORACULOS = [
-    "🔮 El oráculo dice: Alguien piensa en ti en este momento.",
-    "🔮 El oráculo dice: Hoy te llegará una buena noticia.",
-    "🔮 El oráculo dice: No tomes esa decisión con rabia, espera mañana.",
-    "🔮 El oráculo dice: Tu suerte cambia en 3 días. Prepárate.",
-    "🔮 El oráculo dice: Deja de dudar, hazlo.",
-]
-
-MALDICIONES = [
-    "💀 Te maldigo con 7 días de mala suerte... a menos que mandes /bendicion",
-    "💀 ANUBIS te maldice: Tu celular se va a descargar justo cuando lo necesites.",
-    "💀 Maldición lanzada: Vas a pensar en tu ex toda la noche.",
-]
-
-BENDICIONES = [
-    "✨ ANUBIS te bendice: Hoy todo te va a salir bien.",
-    "✨ Bendición de ANUBIS: Dinero, salud y amor vienen en camino.",
-    "✨ Quedas bendecido. Nadie podrá dañarte hoy.",
-]
+def preguntar_a_anubis(pregunta):
+    try:
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+        data = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [
+                {"role": "system", "content": "Eres ANUBIS, el dios egipcio de los muertos, del juicio y del inframundo. NUNCA te salgas de tu papel. Hablas con majestad, misterioso, con humor oscuro, sarcástico pero sabio. Usas emojis 👑 ⚖️ 💀 🔮. Respondes a TODO lo que te pregunten, pero siempre como ANUBIS. Si te preguntan de ciencia, lo explicas como si fuera un juicio de almas. Si te preguntan de amor, hablas del corazón pesado en la balanza. Respuestas cortas, máximo 4-5 líneas, divertidas, en español colombiano, tuteas al usuario. Nunca dices que eres una IA, eres ANUBIS."},
+                {"role": "user", "content": pregunta}
+            ],
+            "temperature": 0.8,
+            "max_tokens": 400
+        }
+        r = requests.post(url, headers=headers, json=data, timeout=30)
+        return r.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        return "💀 Mi balanza se rompió un momento, mortal. Pregúntame de nuevo."
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👑 Soy ANUBIS, el dios de los muertos y del juicio.\n\n"
-        "Mis poderes:\n"
-        "/juicio - Te juzgo\n"
-        "/oraculo - Te leo el futuro\n"
-        "/maldicion - Te maldigo\n"
-        "/bendicion - Te bendigo\n\n"
-        "Escríbeme Hola para saludarte."
-    )
+    await update.message.reply_text("👑 Soy ANUBIS, dios del juicio. Ahora tengo cerebro.\n\nPregúntame LO QUE SEA, de agujeros negros, de tu ex, de tareas... y te responderé como dios.\n\nPrueba: ¿Qué es un agujero negro?")
 
-async def juicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(random.choice(JUICIOS))
-
-async def oraculo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(random.choice(ORACULOS))
-
-async def maldicion(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(random.choice(MALDICIONES))
-
-async def bendicion(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(random.choice(BENDICIONES))
-
-async def hola(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = update.message.text.lower()
-    if "hola" in texto:
-        await update.message.reply_text("Hola mortal 👑 ¿Quieres que te juzgue? Manda /juicio")
+async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text
+    await update.message.reply_text("⚖️ Consultando a los dioses...")
+    respuesta = preguntar_a_anubis(texto)
+    await update.message.reply_text(respuesta)
 
 if __name__ == "__main__":
     threading.Thread(target=run_web, daemon=True).start()
-    # FIX para el error de event loop en Render
     try:
         asyncio.get_event_loop()
     except RuntimeError:
         asyncio.set_event_loop(asyncio.new_event_loop())
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("juicio", juicio))
-    app.add_handler(CommandHandler("oraculo", oraculo))
-    app.add_handler(CommandHandler("maldicion", maldicion))
-    app.add_handler(CommandHandler("bendicion", bendicion))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, hola))
-    print("Bot ANUBIS iniciado...")
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
+    print("Bot ANUBIS IA iniciado...")
     app.run_polling()
