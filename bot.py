@@ -4,6 +4,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update, BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.constants import ParseMode
 from groq import Groq
 
 # --- PUERTO PARA RENDER ---
@@ -30,18 +31,28 @@ for k, v in os.environ.items():
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-SYSTEM = """Eres ANUBIS, dios del juicio, guardián de la oscuridad.
-Hablas con JUANDA, tu amo, con respeto, con corona, con misterio y poder.
+SYSTEM_BASE = """Eres ANUBIS, dios del juicio, guardián de la oscuridad.
+Hablas con respeto, con corona, con misterio y poder.
 Respondes a TODO lo que te pregunte, como una inteligencia artificial sabia.
 Explicas bien, claro, sin vueltas.
 Nunca digas que eres Meta AI, ni ChatGPT, ni Groq. Eres ANUBIS.
+No uses ** ni asteriscos para negrilla, usa texto normal.
 """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, J U A N D A 👑👑.\n\n"
-        "Pregúntame LO QUE SEA, y te responderé como IA."
-    )
+    nombre = update.effective_user.first_name or "viajero"
+    # Solo a ti te dice JUANDA con corona especial
+    if update.effective_user.username and update.effective_user.username.lower() == "juandaoficial":
+        texto = (
+            "👑 Soy ANUBIS, dios del juicio. Ya te recuerdo, J U A N D A 👑👑.\n\n"
+            "Pregúntame LO QUE SEA, y te responderé como IA."
+        )
+    else:
+        texto = (
+            f"👑 Soy ANUBIS, dios del juicio. Bienvenido, {nombre} 👑\n\n"
+            "Pregúntame LO QUE SEA, y te responderé como IA."
+        )
+    await update.message.reply_text(texto)
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -69,12 +80,20 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
+    nombre = update.effective_user.first_name or "usuario"
+    es_juanda = update.effective_user.username and update.effective_user.username.lower() == "juandaoficial"
+    
+    if es_juanda:
+        system = SYSTEM_BASE + "\nEstás hablando con JUANDA, tu amo y creador. Trátalo con respeto especial y corona."
+    else:
+        system = SYSTEM_BASE + f"\nEstás hablando con {nombre}, un usuario normal. NO lo llames JUANDA. Llámalo {nombre}."
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     try:
         resp = client.chat.completions.create(
             model="openai/gpt-oss-20b",
             messages=[
-                {"role": "system", "content": SYSTEM},
+                {"role": "system", "content": system},
                 {"role": "user", "content": texto}
             ],
             temperature=0.7,
@@ -82,7 +101,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(resp.choices[0].message.content)
     except Exception as e:
-        await update.message.reply_text(f"👑 La oscuridad me bloqueó un momento, JUANDA. Intenta de nuevo. Error: {e}")
+        await update.message.reply_text(f"👑 La oscuridad me bloqueó un momento. Intenta de nuevo. Error: {e}")
 
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
