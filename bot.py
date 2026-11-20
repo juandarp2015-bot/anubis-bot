@@ -88,7 +88,7 @@ async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import imageio_ffmpeg
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
         # asetrate baja el pitch, atempo lo deja en velocidad normal
-        subprocess.run([ffmpeg, "-y", "-i", "/tmp/anubis_orig.mp3", "-filter:a", "asetrate=44100*0.78,aresample=44100,atempo=1.0", "-c:a", "libmp3lame", "-q:a", "3", "/tmp/anubis.mp3"], capture_output=True, timeout=30)
+        subprocess.run([ffmpeg, "-y", "-i", "/tmp/anubis_orig.mp3", "-filter:a", "asetrate=44100*0.65,aresample=44100,atempo=1.0", "-c:a", "libmp3lame", "-q:a", "3", "/tmp/anubis.mp3"], capture_output=True, timeout=30)
         
         # 3. Mandar como AUDIO - este sí muestra duración porque es mp3 de Google
         with open("/tmp/anubis.mp3", "rb") as f:
