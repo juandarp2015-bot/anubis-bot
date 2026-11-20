@@ -1,6 +1,7 @@
 import os
 import random
 import threading
+import asyncio
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
@@ -15,8 +16,6 @@ def home():
 def run_web():
     port = int(os.environ.get("PORT", 10000))
     app_flask.run(host="0.0.0.0", port=port)
-
-threading.Thread(target=run_web, daemon=True).start()
 
 # --- BOT ---
 TOKEN = os.environ.get("BOT_TOKEN")
@@ -77,6 +76,12 @@ async def hola(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Hola mortal 👑 ¿Quieres que te juzgue? Manda /juicio")
 
 if __name__ == "__main__":
+    threading.Thread(target=run_web, daemon=True).start()
+    # FIX para el error de event loop en Render
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("juicio", juicio))
